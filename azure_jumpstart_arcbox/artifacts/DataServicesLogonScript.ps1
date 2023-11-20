@@ -28,6 +28,7 @@ az login --service-principal --username $Env:spnClientID --password $Env:spnClie
 Write-Header "Installing Azure CLI extensions"
 az config set extension.use_dynamic_install=yes_without_prompt
 # Installing Azure CLI extensions
+az extension add --name connectedk8s --version 1.3.17
 az extension add --name arcdata --system
 az -v
 
@@ -55,8 +56,8 @@ $Shortcut.Save()
 Write-Host "`n"
 Write-Host "Creating Microsoft SQL Server Management Studio (SSMS) desktop shortcut"
 Write-Host "`n"
-$TargetFile = "C:\Program Files (x86)\Microsoft SQL Server Management Studio 18\Common7\IDE\ssms.exe"
-$ShortcutFile = "C:\Users\$Env:adminUsername\Desktop\Microsoft SQL Server Management Studio 18.lnk"
+$TargetFile = "C:\Program Files (x86)\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe"
+$ShortcutFile = "C:\Users\$Env:adminUsername\Desktop\Microsoft SQL Server Management Studio.lnk"
 $WScriptShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WScriptShell.CreateShortcut($ShortcutFile)
 $Shortcut.TargetPath = $TargetFile
@@ -67,19 +68,19 @@ Write-Header "Downloading CAPI K8s Kubeconfig"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-capi/config"
 $context = (Get-AzStorageAccount -ResourceGroupName $Env:resourceGroup).Context
 $sas = New-AzStorageAccountSASToken -Context $context -Service Blob -ResourceType Object -Permission racwdlup
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "C:\Users\$Env:USERNAME\.kube\config"
 
 # Downloading 'installCAPI.log' log file
 Write-Header "Downloading CAPI Install Logs"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-capi/installCAPI.log"
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "$Env:ArcBoxLogsDir\installCAPI.log"
 
 # Downloading 'installK3s.log' log file
 Write-Header "Downloading K3s Install Logs"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-k3s/installK3s.log"
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "$Env:ArcBoxLogsDir\installK3s.log"
 
 Write-Header "Checking K8s Nodes"
@@ -98,6 +99,7 @@ az k8s-extension create --name arc-data-services `
                         --resource-group $Env:resourceGroup `
                         --auto-upgrade false `
                         --scope cluster `
+                        --version 1.25.0 `
                         --release-namespace arc `
                         --config Microsoft.CustomLocation.ServiceAccount=sa-bootstrapper
 
@@ -176,7 +178,7 @@ Write-Header "Downloading Rancher K3s Kubeconfig"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-k3s/config"
 $context = (Get-AzStorageAccount -ResourceGroupName $Env:resourceGroup).Context
 $sas = New-AzStorageAccountSASToken -Context $context -Service Blob -ResourceType Object -Permission racwdlup
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "C:\Users\$Env:USERNAME\.kube\config-k3s"
 
 # Merging kubeconfig files from CAPI and Rancher K3s
@@ -237,5 +239,8 @@ if(-not $ArcServersLogonScript) {
 
 # Removing the LogonScript Scheduled Task so it won't run on next reboot
 Write-Header "Removing Logon Task"
-Unregister-ScheduledTask -TaskName "DataServicesLogonScript" -Confirm:$false
+if ($null -ne (Get-ScheduledTask -TaskName "DataServicesLogonScript" -ErrorAction SilentlyContinue)) {
+    Unregister-ScheduledTask -TaskName "DataServicesLogonScript" -Confirm:$false
+}
+
 Start-Sleep -Seconds 5

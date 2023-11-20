@@ -1,3 +1,4 @@
+{{ if and (not .Values.Azure.LeastPrivilegeSettings.RuntimeServiceAccount) (not .Values.systemDefaultValues.runtimeServiceAccount) }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -75,12 +76,20 @@ rules:
   - telemetrycollectors
   - telemetryrouters
   - kafkas
+  - postgresqls
   verbs:
   - create
   - patch
   - update
 - apiGroups:
+  - arcdata.microsoft.com
+  resources:
+  - datacontrollers
+  verbs:
+  - patch
+- apiGroups:
   - sql.arcdata.microsoft.com
+  - tasks.postgresql.arcdata.microsoft.com
   - tasks.sql.arcdata.microsoft.com
   - tasks.arcdata.microsoft.com
   - arcdata.microsoft.com
@@ -94,6 +103,7 @@ rules:
   - telemetrycollectors
   - telemetryrouters
   - postgresqls
+  - postgresqlrestoretasks
   - sqlmanagedinstances
   - sqlmanagedinstancerestoretasks
   - sqlmanagedinstancereprovisionreplicatasks
@@ -103,6 +113,7 @@ rules:
   - watch
 - apiGroups:
   - sql.arcdata.microsoft.com
+  - tasks.postgresql.arcdata.microsoft.com
   - tasks.sql.arcdata.microsoft.com
   - tasks.arcdata.microsoft.com
   - arcdata.microsoft.com
@@ -115,6 +126,7 @@ rules:
   - monitors/status
   - telemetrycollectors/status
   - telemetryrouters/status
+  - postgresqlrestoretasks/status
   - postgresqls/status
   - sqlmanagedinstances/status
   - sqlmanagedinstancerestoretasks/status
@@ -154,3 +166,4 @@ rules:
   verbs:
   - patch
   - update
+{{ end }}

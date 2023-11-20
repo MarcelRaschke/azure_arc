@@ -1,3 +1,5 @@
+# Replace the placeholder {{NAMESPACE}} with the actual namespace for Azure Arc-enabled Data Services below
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -123,6 +125,7 @@ rules:
   - update
 - apiGroups:
   - sql.arcdata.microsoft.com
+  - tasks.postgresql.arcdata.microsoft.com
   - tasks.sql.arcdata.microsoft.com
   - tasks.arcdata.microsoft.com
   - arcdata.microsoft.com
@@ -179,6 +182,7 @@ rules:
   - monitors.arcdata.microsoft.com
   - telemetrycollectors.arcdata.microsoft.com
   - postgresqls.arcdata.microsoft.com
+  - postgresqlrestoretasks.tasks.postgresql.arcdata.microsoft.com
   - sqlmanagedinstancerestoretasks.tasks.sql.arcdata.microsoft.com
   - sqlmanagedinstances.sql.arcdata.microsoft.com
   - telemetryrouters.arcdata.microsoft.com

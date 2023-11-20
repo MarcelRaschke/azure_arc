@@ -27,7 +27,7 @@
             "type": "securestring",
             "minLength": 12,
             "maxLength": 123,
-            "defaultValue": "ArcPassword123!!",
+            "defaultValue": "ArcDemo123!!",
             "metadata": {
                 "description": "Password for Windows account. Password must have 3 of the following: 1 lower case character, 1 upper case character, 1 number, and 1 special character. The value must be between 12 and 123 characters long"
             }
@@ -94,7 +94,7 @@
         },
         "azdataPassword": {
             "type": "securestring",
-            "defaultValue": "ArcPassword123!!"
+            "defaultValue": "fMQch2T58L9H3v$7"
         },
         "acceptEula": {
             "type": "string",
@@ -203,6 +203,20 @@
                 "description": "The name of the AKS DR cluster"
             },
             "defaultValue": "ArcBox-AKS-DR-Data"
+        },
+        "rdpPort": {
+            "type": "string",
+            "metadata": {
+                "description": "Override default RDP port 3389 using this parameter. Default is 3389. No changes will be made to the client VM."
+            },
+            "defaultValue": "3389"
+        },
+        "sshPort": {
+            "type": "string",
+            "metadata": {
+                "description": "Override default SSH port 22 using this parameter. Default is 22. No changes will be made to the client VM."
+            },
+            "defaultValue": "22"
         }
     },
     "variables": {
@@ -324,7 +338,7 @@
                     "fileUris": [
                         "[uri(parameters('templateBaseUrl'), 'artifacts/Bootstrap.ps1')]"
                     ],
-                    "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Bypass -File Bootstrap.ps1', ' -adminUsername ', parameters('windowsAdminUsername'), ' -adminPassword ' , parameters('windowsAdminPassword'), ' -spnClientId ', parameters('spnClientId'), ' -spnClientSecret ', parameters('spnClientSecret'), ' -spnTenantId ', parameters('spnTenantId'), ' -spnAuthority ', parameters('spnAuthority'), ' -subscriptionId ', subscription().subscriptionId, ' -resourceGroup ', resourceGroup().name, ' -azdataUsername ', parameters('azdataUsername'), ' -azdataPassword ', parameters('azdataPassword'), ' -acceptEula ', parameters('acceptEula'), ' -registryUsername ', parameters('registryUsername'), ' -registryPassword ', parameters('registryPassword'), ' -arcDcName ', parameters('arcDcName'), ' -azureLocation ', parameters('location'), ' -mssqlmiName ', parameters('mssqlmiName'), ' -POSTGRES_NAME ', parameters('postgresName'), ' -POSTGRES_WORKER_NODE_COUNT ', parameters('postgresWorkerNodeCount'), ' -POSTGRES_DATASIZE ', parameters('postgresDatasize'), ' -POSTGRES_SERVICE_TYPE ', parameters('postgresServiceType'), ' -stagingStorageAccountName ', parameters('stagingStorageAccountName'), ' -workspaceName ', parameters('workspaceName'), ' -capiArcDataClusterName ', parameters('capiArcDataClusterName'), ' -templateBaseUrl ', parameters('templateBaseUrl'), ' -flavor ', parameters('flavor'), ' -k3sArcClusterName ', parameters('k3sArcClusterName'), ' -aksArcClusterName ', parameters('aksArcClusterName') , ' -aksdrArcClusterName ', parameters('aksdrArcClusterName') , ' -githubUser ', parameters('githubUser'))]"
+                    "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Bypass -File Bootstrap.ps1', ' -adminUsername ', parameters('windowsAdminUsername'), ' -adminPassword ' , parameters('windowsAdminPassword'), ' -spnClientId ', parameters('spnClientId'), ' -spnClientSecret ', parameters('spnClientSecret'), ' -spnTenantId ', parameters('spnTenantId'), ' -spnAuthority ', parameters('spnAuthority'), ' -subscriptionId ', subscription().subscriptionId, ' -resourceGroup ', resourceGroup().name, ' -azdataUsername ', parameters('azdataUsername'), ' -azdataPassword ', parameters('azdataPassword'), ' -acceptEula ', parameters('acceptEula'), ' -registryUsername ', parameters('registryUsername'), ' -registryPassword ', parameters('registryPassword'), ' -arcDcName ', parameters('arcDcName'), ' -azureLocation ', parameters('location'), ' -mssqlmiName ', parameters('mssqlmiName'), ' -POSTGRES_NAME ', parameters('postgresName'), ' -POSTGRES_WORKER_NODE_COUNT ', parameters('postgresWorkerNodeCount'), ' -POSTGRES_DATASIZE ', parameters('postgresDatasize'), ' -POSTGRES_SERVICE_TYPE ', parameters('postgresServiceType'), ' -stagingStorageAccountName ', parameters('stagingStorageAccountName'), ' -workspaceName ', parameters('workspaceName'), ' -capiArcDataClusterName ', parameters('capiArcDataClusterName'), ' -templateBaseUrl ', parameters('templateBaseUrl'), ' -flavor ', parameters('flavor'), ' -k3sArcClusterName ', parameters('k3sArcClusterName'), ' -aksArcClusterName ', parameters('aksArcClusterName') , ' -aksdrArcClusterName ', parameters('aksdrArcClusterName') , ' -githubUser ', parameters('githubUser'), ' -rdpPort ', parameters('rdpPort'), ' -sshPort ', parameters('sshPort'))]"
                 }
             }
         }

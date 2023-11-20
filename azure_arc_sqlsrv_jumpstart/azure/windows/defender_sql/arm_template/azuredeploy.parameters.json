@@ -1,0 +1,28 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "windowsAdminUsername": {
+            "value": "<Windows VM admin username>"
+        },
+        "windowsAdminPassword": {
+            "value": "<Windows VM admin password>"
+        },
+        "spnClientId": {
+            "value": "<Azure service principal name>"
+        },
+        "spnClientSecret": {
+            "value": "<Azure service principal password>"
+        },
+        "spnTenantId": {
+            "value": "<Azure tenant ID>"
+        },
+        "logAnalyticsWorkspaceName": {
+            "value": "<your unique Log Analytics workspace name>"
+        },
+        "deployBastion": {
+            "value": "(true/false)"
+        }
+    }
+}
+  

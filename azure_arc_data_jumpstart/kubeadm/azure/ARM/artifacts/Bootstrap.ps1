@@ -17,7 +17,8 @@ param (
     [string]$SQLMIHA,    
     [string]$deployPostgreSQL,
     [string]$ArcK8sClusterName,
-    [string]$templateBaseUrl
+    [string]$templateBaseUrl,
+    [string]$customLocationRPOID
 )
 
 [System.Environment]::SetEnvironmentVariable('adminUsername', $adminUsername,[System.EnvironmentVariableTarget]::Machine)
@@ -39,6 +40,7 @@ param (
 [System.Environment]::SetEnvironmentVariable('deployPostgreSQL', $deployPostgreSQL,[System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('ArcK8sClusterName', $ArcK8sClusterName,[System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('templateBaseUrl', $templateBaseUrl,[System.EnvironmentVariableTarget]::Machine)
+[System.Environment]::SetEnvironmentVariable('customLocationRPOID', $customLocationRPOID,[System.EnvironmentVariableTarget]::Machine)
 
 # Create path
 Write-Output "Create deployment path"
@@ -81,7 +83,7 @@ Invoke-WebRequest ($templateBaseUrl + "artifacts/postgreSQL.json") -OutFile "C:\
 Invoke-WebRequest ($templateBaseUrl + "artifacts/postgreSQL.parameters.json") -OutFile "C:\Temp\postgreSQL.parameters.json"
 Invoke-WebRequest ($templateBaseUrl + "artifacts/SQLMIEndpoints.ps1") -OutFile "C:\Temp\SQLMIEndpoints.ps1"
 Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStress.zip" -OutFile "C:\Temp\SqlQueryStress.zip"
-Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/azure_arc/main/img/jumpstart_wallpaper.png" -OutFile "C:\Temp\wallpaper.png"
+Invoke-WebRequest "https://raw.githubusercontent.com/Azure/arc_jumpstart_docs/main/img/wallpaper/jumpstart_wallpaper_dark.png" -OutFile "C:\Temp\wallpaper.png"
 
 # Installing tools
 workflow ClientTools_01
@@ -138,6 +140,26 @@ ClientTools_02 | Format-Table
 
 New-Item -path alias:kubectl -value 'C:\ProgramData\chocolatey\lib\kubernetes-cli\tools\kubernetes\client\bin\kubectl.exe'
 New-Item -path alias:azdata -value 'C:\Program Files (x86)\Microsoft SDKs\Azdata\CLI\wbin\azdata.cmd'
+
+# Disable Microsoft Edge sidebar
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HubsSidebarEnabled'
+$Value        = '00000000'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
+
+# Disable Microsoft Edge first-run Welcome screen
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HideFirstRunExperience'
+$Value        = '00000001'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
 
 # Creating scheduled task for DataServicesLogonScript.ps1
 $Trigger = New-ScheduledTaskTrigger -AtLogOn

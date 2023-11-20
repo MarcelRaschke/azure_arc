@@ -285,7 +285,7 @@ foreach ($sqlInstance in $sqlInstances) {
             Write-Host "Downloading AdventureWorks database for MS SQL... (1/2)"
             kubectl exec $podname -n arc --kubeconfig $sqlInstance.kubeConfig -c arc-sqlmi -- wget https://github.com/Microsoft/sql-server-samples/releases/download/adventureworks/AdventureWorks2019.bak -O /var/opt/mssql/data/AdventureWorks2019.bak 2>&1 | Out-Null
             Write-Host "Restoring AdventureWorks database for MS SQL. (2/2)"
-            kubectl exec $podname -n arc --kubeconfig $sqlInstance.kubeConfig -c arc-sqlmi -- /opt/mssql-tools/bin/sqlcmd -S localhost -U $Env:AZDATA_USERNAME -P "$Env:AZDATA_PASSWORD" -Q "RESTORE DATABASE AdventureWorks2019 FROM  DISK = N'/var/opt/mssql/data/AdventureWorks2019.bak' WITH MOVE 'AdventureWorks2017' TO '/var/opt/mssql/data/AdventureWorks2019.mdf', MOVE 'AdventureWorks2017_Log' TO '/var/opt/mssql/data/AdventureWorks2019_Log.ldf'" 2>&1 $null
+            kubectl exec $podname -n arc --kubeconfig $sqlInstance.kubeConfig -c arc-sqlmi -- /opt/mssql-tools/bin/sqlcmd -S localhost -U $Env:AZDATA_USERNAME -P "$Env:AZDATA_PASSWORD" -Q "RESTORE DATABASE AdventureWorks2019 FROM  DISK = N'/var/opt/mssql/data/AdventureWorks2019.bak' WITH MOVE 'AdventureWorks2019' TO '/var/opt/mssql/data/AdventureWorks2019.mdf', MOVE 'AdventureWorks2019_Log' TO '/var/opt/mssql/data/AdventureWorks2019_Log.ldf'" 2>&1 $null
             Write-Host "Restoring AdventureWorks database completed."
         }
 
@@ -362,23 +362,19 @@ Write-Host "Configuring the primary cluster DAG"
 New-Item -Path "$Env:ArcBoxDir/sqlcerts" -ItemType Directory
 Write-Host "`n"
 kubectx $sqlInstances[0].context
-$primaryMirroringEndpoint = $(az sql mi-arc show -n $sqlInstances[0].instanceName --k8s-namespace arc --use-k8s -o tsv --query 'status.endpoints.mirroring')
 az sql mi-arc get-mirroring-cert --name $sqlInstances[0].instanceName --cert-file "$Env:ArcBoxDir/sqlcerts/sqlprimary.pem" --k8s-namespace arc --use-k8s
 Write-Host "`n"
 
 Write-Host "Configuring the secondary cluster DAG"
 Write-Host "`n"
 kubectx $sqlInstances[2].context
-$secondaryMirroringEndpoint = $(az sql mi-arc show -n $sqlInstances[2].instanceName --k8s-namespace arc --use-k8s -o tsv --query 'status.endpoints.mirroring')
 az sql mi-arc get-mirroring-cert --name $sqlInstances[2].instanceName --cert-file "$Env:ArcBoxDir/sqlcerts/sqlsecondary.pem" --k8s-namespace arc --use-k8s
 Write-Host "`n"
 
 Write-Host "`n"
 kubectx $sqlInstances[0].context
-az sql instance-failover-group-arc create --shared-name ArcBoxDag --name primarycr --mi $sqlInstances[0].instanceName --role primary --partner-mi $sqlInstances[2].instanceName  --partner-mirroring-url "tcp://$secondaryMirroringEndpoint" --partner-mirroring-cert-file "$Env:ArcBoxDir/sqlcerts/sqlsecondary.pem" --k8s-namespace arc --use-k8s
+az sql instance-failover-group-arc create --shared-name ArcBoxDag --name primarycr --mi $sqlInstances[0].instanceName --role primary --partner-mi $sqlInstances[2].instanceName --resource-group $env:resourceGroup --partner-resource-group $env:resourceGroup
 Write-Host "`n"
-kubectx $sqlInstances[2].context
-az sql instance-failover-group-arc create --shared-name ArcBoxDag --name secondarycr --mi $sqlInstances[2].instanceName --role secondary --partner-mi $sqlInstances[0].instanceName  --partner-mirroring-url "tcp://$primaryMirroringEndpoint" --partner-mirroring-cert-file "$Env:ArcBoxDir/sqlcerts/sqlprimary.pem" --k8s-namespace arc --use-k8s
 
 $cnameRecord = $sqlInstances[0].instanceName + ".jumpstart.local"
 Add-DnsServerResourceRecordCName -Name "ArcBoxDag" -ComputerName $dcInfo.HostName -HostNameAlias $cnameRecord -ZoneName jumpstart.local -TimeToLive 00:05:00
@@ -437,8 +433,8 @@ $sqlServerConnection = @"
         "server": "10.10.1.100",
         "database": "",
         "authenticationType": "SqlLogin",
-        "user": "$sa_username",
-        "password": "$sa_password",
+        "user": "sa",
+        "password": "ArcDemo123!!",
         "applicationName": "azdata",
         "groupId": "C777F06B-202E-4480-B475-FA416154D458",
         "databaseDisplayName": ""

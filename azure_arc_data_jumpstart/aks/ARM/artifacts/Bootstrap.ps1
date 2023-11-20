@@ -86,7 +86,7 @@ Invoke-WebRequest ($templateBaseUrl + "artifacts/postgreSQL.json") -OutFile "${t
 Invoke-WebRequest ($templateBaseUrl + "artifacts/postgreSQL.parameters.json") -OutFile "${tempDir}\postgreSQL.parameters.json"
 Invoke-WebRequest ($templateBaseUrl + "artifacts/SQLMIEndpoints.ps1") -OutFile "${tempDir}\SQLMIEndpoints.ps1"
 Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStress.zip" -OutFile "${tempDir}\SqlQueryStress.zip"
-Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/azure_arc/main/img/jumpstart_wallpaper.png" -OutFile "${tempDir}\wallpaper.png"
+Invoke-WebRequest "https://raw.githubusercontent.com/Azure/arc_jumpstart_docs/main/img/wallpaper/jumpstart_wallpaper_dark.png" -OutFile "${tempDir}\wallpaper.png"
 Invoke-WebRequest ($templateBaseUrl + "artifacts/adConnector.yaml") -OutFile "${tempDir}\adConnector.yaml"
 Invoke-WebRequest ($templateBaseUrl + "artifacts/adConnectorCMK.yaml") -OutFile "${tempDir}\adConnectorCMK.yaml"
 Invoke-WebRequest ($templateBaseUrl + "artifacts/SQLMIADAuthCMK.yaml") -OutFile "${tempDir}\SQLMIADAuthCMK.yaml"
@@ -149,6 +149,26 @@ ClientTools_02 | Format-Table
 
 New-Item -path alias:kubectl -value 'C:\ProgramData\chocolatey\lib\kubernetes-cli\tools\kubernetes\client\bin\kubectl.exe'
 New-Item -path alias:azdata -value 'C:\Program Files (x86)\Microsoft SDKs\Azdata\CLI\wbin\azdata.cmd'
+
+# Disable Microsoft Edge sidebar
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HubsSidebarEnabled'
+$Value        = '00000000'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
+
+# Disable Microsoft Edge first-run Welcome screen
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HideFirstRunExperience'
+$Value        = '00000001'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
 
 # Disabling Windows Server Manager Scheduled Task
 Get-ScheduledTask -TaskName ServerManager | Disable-ScheduledTask

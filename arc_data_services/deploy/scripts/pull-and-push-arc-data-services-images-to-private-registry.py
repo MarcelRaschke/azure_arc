@@ -2,9 +2,9 @@
 
 # requires installation of Docker: https://docs.docker.com/install/
 
-from subprocess import check_output, CalledProcessError, STDOUT, Popen, PIPE
-import os
 import getpass
+import os
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_output
 
 
 def execute_cmd(cmd):
@@ -54,9 +54,9 @@ else:
 if os.getenv("SOURCE_DOCKER_TAG") is None:
     SOURCE_DOCKER_TAG = (
         input(
-            "Provide container image tag for the images at the source - press ENTER for using 'v1.13.0_2022-11-08': "
+            "Provide container image tag for the images at the source - press ENTER for using 'v1.25.0_2023-11-14': "
         )
-        or "v1.13.0_2022-11-08"
+        or "v1.25.0_2023-11-14"
     )
 else:
     SOURCE_DOCKER_TAG = os.environ["SOURCE_DOCKER_TAG"]
@@ -104,11 +104,11 @@ images = [
     "arc-ha-supervisor",
     "arc-kafka",
     "arc-monitor-collectd",
-    "arc-monitor-elasticsearch",
+    "arc-monitor-opensearch",
+    "arc-monitor-opensearch-dashboards",
     "arc-monitor-fluentbit",
     "arc-monitor-grafana",
     "arc-monitor-influxdb",
-    "arc-monitor-kibana",
     "arc-monitor-opentelemetry-collector",
     "arc-monitor-telegraf",
     "arc-postgres-14",

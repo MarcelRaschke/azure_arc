@@ -20,7 +20,7 @@ az config set extension.use_dynamic_install=yes_without_prompt
 Write-Host "`n"
 Write-Host "Installing Azure CLI extensions"
 az extension add --name arcdata
-az extension add --name connectedk8s
+az extension add --name connectedk8s --version 1.3.17
 az extension add --name k8s-extension
 Write-Host "`n"
 az -v
@@ -110,6 +110,7 @@ az k8s-extension create --name arc-data-services `
                         --resource-group $Env:resourceGroup `
                         --auto-upgrade false `
                         --scope cluster `
+                        --version 1.25.0 `
                         --release-namespace arc `
                         --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper `
 
@@ -131,12 +132,18 @@ $extensionId = az k8s-extension show --name arc-data-services `
 Start-Sleep -Seconds 20
 
 # Create Custom Location
-az customlocation create --name "$Env:capiArcDataClusterName-cl" `
+az connectedk8s enable-features -n $connectedClusterName `
+                                -g $Env:resourceGroup `
+                                --custom-locations-oid $Env:customLocationRPOID `
+                                --features cluster-connect custom-locations
+
+$customLocationName = "$connectedClusterName-cl"
+
+az customlocation create --name $customlocationName `
                          --resource-group $Env:resourceGroup `
                          --namespace arc `
                          --host-resource-id $connectedClusterId `
-                         --cluster-extension-ids $extensionId `
-                         --kubeconfig $Env:KUBECONFIG
+                         --cluster-extension-ids $extensionId
 
 # Deploying Azure Arc Data Controller
 Write-Host "`n"

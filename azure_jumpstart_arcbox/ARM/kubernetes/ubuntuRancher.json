@@ -24,9 +24,9 @@
         },
         "ubuntuOSVersion": {
             "type": "string",
-            "defaultValue": "20_04-lts-gen2",
+            "defaultValue": "22_04-lts-gen2",
             "allowedValues": [
-                "20_04-lts-gen2"
+                "22_04-lts-gen2"
             ],
             "metadata": {
                 "description": "The Ubuntu version for the VM. This will pick a fully patched image of this given Ubuntu version"
@@ -108,6 +108,20 @@
                 "description": "Choice to deploy Azure Bastion"
             },
             "defaultValue": false
+        },
+        "rdpPort": {
+            "type": "string",
+            "metadata": {
+                "description": "Override default RDP port 3389 using this parameter. Default is 3389. No changes will be made to the client VM."
+            },
+            "defaultValue": "3389"
+        },
+        "sshPort": {
+            "type": "string",
+            "metadata": {
+                "description": "Override default SSH port 22 using this parameter. Default is 22. No changes will be made to the client VM."
+            },
+            "defaultValue": "22"
         }
     },
     "variables": {
@@ -183,8 +197,8 @@
                         }
                     },
                     "imageReference": {
-                        "publisher": "Canonical",
-                        "offer": "0001-com-ubuntu-server-focal",
+                        "publisher": "canonical",
+                        "offer": "0001-com-ubuntu-server-jammy",
                         "sku": "[parameters('ubuntuOSVersion')]",
                         "version": "latest"
                     }

@@ -15,7 +15,7 @@ param (
     [string]$arcDcName,
     [string]$azureLocation,
     [string]$mssqlmiName,
-    [string]$POSTGRES_NAME,   
+    [string]$POSTGRES_NAME,
     [string]$POSTGRES_WORKER_NODE_COUNT,
     [string]$POSTGRES_DATASIZE,
     [string]$POSTGRES_SERVICE_TYPE,
@@ -28,7 +28,8 @@ param (
     [string]$githubUser,
     [string]$templateBaseUrl,
     [string]$flavor,
-    [string]$automationTriggerAtLogon
+    [string]$rdpPort,
+    [string]$sshPort
 )
 
 [System.Environment]::SetEnvironmentVariable('adminUsername', $adminUsername, [System.EnvironmentVariableTarget]::Machine)
@@ -67,21 +68,20 @@ param (
 [System.Environment]::SetEnvironmentVariable('aksArcClusterName', $aksArcClusterName, [System.EnvironmentVariableTarget]::Machine)
 [System.Environment]::SetEnvironmentVariable('aksdrArcClusterName', $aksdrArcClusterName, [System.EnvironmentVariableTarget]::Machine)
 
-
-
+[System.Environment]::SetEnvironmentVariable('ArcBoxDir', "C:\ArcBox", [System.EnvironmentVariableTarget]::Machine)
 
 # Creating ArcBox path
 Write-Output "Creating ArcBox path"
 $Env:ArcBoxDir = "C:\ArcBox"
-$Env:ArcBoxLogsDir = "C:\ArcBox\Logs"
-$Env:ArcBoxVMDir = "C:\ArcBox\Virtual Machines"
-$Env:ArcBoxKVDir = "C:\ArcBox\KeyVault"
-$Env:ArcBoxGitOpsDir = "C:\ArcBox\GitOps"
-$Env:ArcBoxIconDir = "C:\ArcBox\Icons"
-$Env:agentScript = "C:\ArcBox\agentScript"
+$Env:ArcBoxLogsDir = "$Env:ArcBoxDir\Logs"
+$Env:ArcBoxVMDir = "$Env:ArcBoxDir\Virtual Machines"
+$Env:ArcBoxKVDir = "$Env:ArcBoxDir\KeyVault"
+$Env:ArcBoxGitOpsDir = "$Env:ArcBoxDir\GitOps"
+$Env:ArcBoxIconDir = "$Env:ArcBoxDir\Icons"
+$Env:agentScript = "$Env:ArcBoxDir\agentScript"
 $Env:ToolsDir = "C:\Tools"
 $Env:tempDir = "C:\Temp"
-$Env:ArcBoxDataOpsDir = "C:\ArcBox\DataOps"
+$Env:ArcBoxDataOpsDir = "$Env:ArcBoxDir\DataOps"
 
 New-Item -Path $Env:ArcBoxDir -ItemType directory -Force
 New-Item -Path $Env:ArcBoxLogsDir -ItemType directory -Force
@@ -110,7 +110,7 @@ Resize-Partition -DriveLetter C -Size $(Get-PartitionSupportedSize -DriveLetter 
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module -Name Posh-SSH -Force
 
-# Installing DHCP service 
+# Installing DHCP service
 Write-Output "Installing DHCP service"
 Install-WindowsFeature -Name "DHCP" -IncludeManagementTools
 
@@ -122,7 +122,7 @@ if ($flavor -eq "DataOps") {
 
 # Installing tools
 Write-Header "Installing Chocolatey Apps"
-$chocolateyAppList = 'azure-cli,az.powershell,kubernetes-cli,vcredist140,microsoft-edge,azcopy10,vscode,git,7zip,kubectx,terraform,putty.install,kubernetes-helm,ssms,dotnetcore-3.1-sdk,setdefaultbrowser,zoomit,openssl.light'
+$chocolateyAppList = 'az.powershell,kubernetes-cli,vcredist140,microsoft-edge,azcopy10,vscode,git,7zip,kubectx,terraform,putty.install,kubernetes-helm,ssms,dotnet-sdk,setdefaultbrowser,zoomit,openssl.light'
 
 try {
     choco config get cacheLocation
@@ -134,19 +134,26 @@ catch {
 
 Write-Host "Chocolatey Apps Specified"
 
-$appsToInstall = $chocolateyAppList -split "," | foreach { "$($_.Trim())" }
+$appsToInstall = $chocolateyAppList -split "," | ForEach-Object { "$($_.Trim())" }
 
 foreach ($app in $appsToInstall) {
     Write-Host "Installing $app"
     & choco install $app /y -Force | Write-Output
-    
+
 }
+
+Write-Header "Installing Azure CLI (64-bit not available via Chocolatey)"
+
+$ProgressPreference = 'SilentlyContinue'
+Invoke-WebRequest -Uri https://aka.ms/installazurecliwindowsx64 -OutFile .\AzureCLI.msi
+Start-Process msiexec.exe -Wait -ArgumentList '/I AzureCLI.msi /quiet'
+Remove-Item .\AzureCLI.msi
 
 Write-Header "Fetching GitHub Artifacts"
 
 # All flavors
 Write-Host "Fetching Artifacts for All Flavors"
-Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/azure_arc/main/img/arcbox_wallpaper.png" -OutFile $Env:ArcBoxDir\wallpaper.png
+Invoke-WebRequest "https://raw.githubusercontent.com/Azure/arc_jumpstart_docs/main/img/wallpaper/arcbox_wallpaper_dark.png" -OutFile $Env:ArcBoxDir\wallpaper.png
 Invoke-WebRequest ($templateBaseUrl + "artifacts/MonitorWorkbookLogonScript.ps1") -OutFile $Env:ArcBoxDir\MonitorWorkbookLogonScript.ps1
 Invoke-WebRequest ($templateBaseUrl + "artifacts/mgmtMonitorWorkbook.parameters.json") -OutFile $Env:ArcBoxDir\mgmtMonitorWorkbook.parameters.json
 Invoke-WebRequest ($templateBaseUrl + "artifacts/DeploymentStatus.ps1") -OutFile $Env:ArcBoxDir\DeploymentStatus.ps1
@@ -183,6 +190,7 @@ if ($flavor -eq "Full" -Or $flavor -eq "ITPro") {
     Invoke-WebRequest ($templateBaseUrl + "artifacts/icons/arcsql.ico") -OutFile $Env:ArcBoxIconDir\arcsql.ico
     Invoke-WebRequest ($templateBaseUrl + "artifacts/ArcSQLManualOnboarding.ps1") -OutFile $Env:ArcBoxDir\ArcSQLManualOnboarding.ps1
     Invoke-WebRequest ($templateBaseUrl + "artifacts/installArcAgentSQLUser.ps1") -OutFile $Env:ArcBoxDir\installArcAgentSQLUser.ps1
+    Invoke-WebRequest ($templateBaseUrl + "artifacts/testDefenderForSQL.ps1") -OutFile $Env:ArcBoxDir\testDefenderForSQL.ps1
 }
 
 # DevOps
@@ -215,13 +223,16 @@ if ($flavor -eq "DataOps") {
     Invoke-WebRequest ($templateBaseUrl + "artifacts/sqlmiAD.json") -OutFile $Env:ArcBoxDir\sqlmiAD.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/sqlmiAD.parameters.json") -OutFile $Env:ArcBoxDir\sqlmiAD.parameters.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/SQLMIEndpoints.ps1") -OutFile $Env:ArcBoxDir\SQLMIEndpoints.ps1
-    Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStress.zip" -OutFile $Env:ArcBoxDir\SqlQueryStress.zip
+    Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStressNet6.zip" -OutFile $Env:ArcBoxDir\SqlQueryStress.zip
     Invoke-WebRequest ($templateBaseUrl + "artifacts/adConnector.json") -OutFile $Env:ArcBoxDir\adConnector.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/adConnector.parameters.json") -OutFile $Env:ArcBoxDir\adConnector.parameters.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/DataOpsAppScript.ps1") -OutFile $Env:ArcBoxDir\DataOpsAppScript.ps1
     Invoke-WebRequest ($templateBaseUrl + "artifacts/icons/bookstore.ico") -OutFile $Env:ArcBoxIconDir\bookstore.ico
     Invoke-WebRequest ($templateBaseUrl + "artifacts/DataOpsAppDRScript.ps1") -OutFile $Env:ArcBoxDataOpsDir\DataOpsAppDRScript.ps1
-    Invoke-WebRequest ($templateBaseUrl + "artifacts/DataOpsTestAppScript.ps1") -OutFile $Env:ArcBoxDataOpsDir\DataOpsTestAppScript.ps1   
+    Invoke-WebRequest ($templateBaseUrl + "artifacts/DataOpsTestAppScript.ps1") -OutFile $Env:ArcBoxDataOpsDir\DataOpsTestAppScript.ps1
+    Invoke-WebRequest ($templateBaseUrl + "artifacts/installArcAgent.ps1") -OutFile $Env:ArcBoxDir\agentScript\installArcAgent.ps1
+    Invoke-WebRequest ($templateBaseUrl + "artifacts/installArcAgentSQLSP.ps1") -OutFile $Env:ArcBoxDir\agentScript\installArcAgentSQLSP.ps1
+    Invoke-WebRequest ($templateBaseUrl + "artifacts/testDefenderForSQL.ps1") -OutFile $Env:ArcBoxDir\testDefenderForSQL.ps1
 }
 
 # Full
@@ -240,16 +251,69 @@ if ($flavor -eq "Full") {
     Invoke-WebRequest ($templateBaseUrl + "artifacts/sqlmi.json") -OutFile $Env:ArcBoxDir\sqlmi.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/sqlmi.parameters.json") -OutFile $Env:ArcBoxDir\sqlmi.parameters.json
     Invoke-WebRequest ($templateBaseUrl + "artifacts/SQLMIEndpoints.ps1") -OutFile $Env:ArcBoxDir\SQLMIEndpoints.ps1
-    Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStress.zip" -OutFile $Env:ArcBoxDir\SqlQueryStress.zip
+    Invoke-WebRequest "https://github.com/ErikEJ/SqlQueryStress/releases/download/102/SqlQueryStressNet6.zip" -OutFile $Env:ArcBoxDir\SqlQueryStress.zip
 }
 
 New-Item -path alias:kubectl -value 'C:\ProgramData\chocolatey\lib\kubernetes-cli\tools\kubernetes\client\bin\kubectl.exe'
 New-Item -path alias:azdata -value 'C:\Program Files (x86)\Microsoft SDKs\Azdata\CLI\wbin\azdata.cmd'
 
+# Disable Microsoft Edge sidebar
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HubsSidebarEnabled'
+$Value        = '00000000'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
+
+# Disable Microsoft Edge first-run Welcome screen
+$RegistryPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+$Name         = 'HideFirstRunExperience'
+$Value        = '00000001'
+# Create the key if it does not exist
+If (-NOT (Test-Path $RegistryPath)) {
+  New-Item -Path $RegistryPath -Force | Out-Null
+}
+New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType DWORD -Force
+
 if ($flavor -eq "Full" -Or $flavor -eq "DataOps") {
     Write-Header "Installing Azure Data Studio"
     Expand-Archive $Env:ArcBoxDir\azuredatastudio.zip -DestinationPath 'C:\Program Files\Azure Data Studio'
     Start-Process msiexec.exe -Wait -ArgumentList "/I $Env:ArcBoxDir\AZDataCLI.msi /quiet"
+}
+
+# Change RDP Port
+Write-Host "RDP port number from configuration is $rdpPort"
+if (($rdpPort -ne $null) -and ($rdpPort -ne "") -and ($rdpPort -ne "3389"))
+{
+    Write-Host "Configuring RDP port number to $rdpPort"
+    $TSPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
+    $RDPTCPpath = $TSPath + '\Winstations\RDP-Tcp'
+    Set-ItemProperty -Path $TSPath -name 'fDenyTSConnections' -Value 0
+
+    # RDP port
+    $portNumber = (Get-ItemProperty -Path $RDPTCPpath -Name 'PortNumber').PortNumber
+    Write-Host "Current RDP PortNumber: $portNumber"
+    if (!($portNumber -eq $rdpPort))
+    {
+      Write-Host Setting RDP PortNumber to $rdpPort
+      Set-ItemProperty -Path $RDPTCPpath -name 'PortNumber' -Value $rdpPort
+      Restart-Service TermService -force
+    }
+
+    #Setup firewall rules
+    if ($rdpPort -eq 3389)
+    {
+      netsh advfirewall firewall set rule group="remote desktop" new Enable=Yes
+    }
+    else
+    {
+      $systemroot = get-content env:systemroot
+      netsh advfirewall firewall add rule name="Remote Desktop - Custom Port" dir=in program=$systemroot\system32\svchost.exe service=termservice action=allow protocol=TCP localport=$RDPPort enable=yes
+    }
+
+    Write-Host "RDP port configuration complete."
 }
 
 Write-Header "Configuring Logon Scripts"
@@ -263,14 +327,14 @@ if ($flavor -eq "Full" -Or $flavor -eq "ITPro") {
 
 if ($flavor -eq "Full") {
     # Creating scheduled task for DataServicesLogonScript.ps1
-    $Trigger = New-ScheduledTaskTrigger -AtLogOn 
+    $Trigger = New-ScheduledTaskTrigger -AtLogOn
     $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Env:ArcBoxDir\DataServicesLogonScript.ps1
     Register-ScheduledTask -TaskName "DataServicesLogonScript" -Trigger $Trigger -User $adminUsername -Action $Action -RunLevel "Highest" -Force
 }
 
 if ($flavor -eq "DevOps") {
     # Creating scheduled task for DevOpsLogonScript.ps1
-    $Trigger = New-ScheduledTaskTrigger -AtLogOn 
+    $Trigger = New-ScheduledTaskTrigger -AtLogOn
     $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument $Env:ArcBoxDir\DevOpsLogonScript.ps1
     Register-ScheduledTask -TaskName "DevOpsLogonScript" -Trigger $Trigger -User $adminUsername -Action $Action -RunLevel "Highest" -Force
 }
@@ -285,7 +349,7 @@ if ($flavor -eq "DataOps") {
             UserName = "${netbiosname}\${adminUsername}"
             Password = (ConvertTo-SecureString -String $adminPassword -AsPlainText -Force)[0]
         })
-    
+
     $localCred = New-Object pscredential -ArgumentList ([pscustomobject]@{
             UserName = "${computername}\${adminUsername}"
             Password = (ConvertTo-SecureString -String $adminPassword -AsPlainText -Force)[0]
@@ -315,7 +379,7 @@ if ($flavor -eq "DataOps") {
 
     # Clean up Bootstrap.log
     Stop-Transcript
-    $logSuppress = Get-Content $bootstrapLogFile | Where { $_ -notmatch "Host Application: powershell.exe" }
+    $logSuppress = Get-Content $bootstrapLogFile | Where-Object { $_ -notmatch "Host Application: powershell.exe" }
     $logSuppress | Set-Content $bootstrapLogFile -Force
 
     # Restart computer
@@ -342,7 +406,6 @@ else {
     # Clean up Bootstrap.log
     Write-Host "Clean up Bootstrap.log"
     Stop-Transcript
-    $logSuppress = Get-Content $Env:ArcBoxLogsDir\Bootstrap.log | Where { $_ -notmatch "Host Application: powershell.exe" } 
+    $logSuppress = Get-Content $Env:ArcBoxLogsDir\Bootstrap.log | Where-Object { $_ -notmatch "Host Application: powershell.exe" }
     $logSuppress | Set-Content $Env:ArcBoxLogsDir\Bootstrap.log -Force
-
 }

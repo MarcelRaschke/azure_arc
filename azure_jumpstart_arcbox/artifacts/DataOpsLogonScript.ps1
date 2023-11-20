@@ -45,7 +45,8 @@ az provider register --namespace Microsoft.AzureArcData --wait
 Write-Header "Installing Azure CLI extensions"
 az config set extension.use_dynamic_install=yes_without_prompt
 # Installing Azure CLI extensions
-az extension add --name arcdata --system
+az extension add --name connectedk8s --version 1.3.17
+az extension add --name arcdata
 az -v
 
 # Installing Azure Data Studio extensions
@@ -72,8 +73,8 @@ $Shortcut.Save()
 Write-Host "`n"
 Write-Host "Creating Microsoft SQL Server Management Studio (SSMS) desktop shortcut"
 Write-Host "`n"
-$TargetFile = "C:\Program Files (x86)\Microsoft SQL Server Management Studio 18\Common7\IDE\ssms.exe"
-$ShortcutFile = "C:\Users\$Env:adminUsername\Desktop\Microsoft SQL Server Management Studio 18.lnk"
+$TargetFile = "C:\Program Files (x86)\Microsoft SQL Server Management Studio 19\Common7\IDE\ssms.exe"
+$ShortcutFile = "C:\Users\$Env:adminUsername\Desktop\Microsoft SQL Server Management Studio.lnk"
 $WScriptShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WScriptShell.CreateShortcut($ShortcutFile)
 $Shortcut.TargetPath = $TargetFile
@@ -91,18 +92,15 @@ Write-Header "Downloading CAPI K8s Kubeconfig"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-capi/config"
 $context = (Get-AzStorageAccount -ResourceGroupName $Env:resourceGroup).Context
 $sas = New-AzStorageAccountSASToken -Context $context -Service Blob -ResourceType Object -Permission racwdlup
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "C:\Users\$Env:USERNAME\.kube\config-capi"
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "C:\Users\$Env:USERNAME\.kube\config"
 
 # Downloading 'installCAPI.log' log file
 Write-Header "Downloading CAPI Install Logs"
 $sourceFile = "https://$Env:stagingStorageAccountName.blob.core.windows.net/staging-capi/installCAPI.log"
-$sourceFile = $sourceFile + $sas
+$sourceFile = $sourceFile + "?" + $sas
 azcopy cp --check-md5 FailIfDifferentOrMissing $sourceFile  "$Env:ArcBoxLogsDir\installCAPI.log"
-
-# Update CAPI vnet DNS server
-#az network vnet update -g $Env:resourceGroup -n "arcbox-capi-data-vnet" --dns-servers 10.16.2.100
 
 #VNet peering with CAPI vnet
 $capiVnetName = $clusters[0].clusterName + '-vnet'
@@ -185,6 +183,7 @@ foreach ($cluster in $clusters) {
         $cluster = $using:cluster
         $context = $cluster.context
         Start-Transcript -Path "$Env:ArcBoxLogsDir\DataController-$context.log"
+        
         az k8s-extension create --name arc-data-services `
             --extension-type microsoft.arcdataservices `
             --cluster-type connectedClusters `
@@ -193,6 +192,7 @@ foreach ($cluster in $clusters) {
             --auto-upgrade false `
             --scope cluster `
             --release-namespace arc `
+            --version 1.25.0 `
             --config Microsoft.CustomLocation.ServiceAccount=sa-bootstrapper
 
         Write-Host "`n"
@@ -346,8 +346,10 @@ if (-not $ArcServersLogonScript) {
 
 # Removing the LogonScript Scheduled Task so it won't run on next reboot
 Write-Header "Removing Logon Task"
-Unregister-ScheduledTask -TaskName "DataOpsLogonScript" -Confirm:$false
-Unregister-ScheduledTask -TaskName "ArcServersLogonScript" -Confirm:$false
+if ($null -ne (Get-ScheduledTask -TaskName "DataOpsLogonScript" -ErrorAction SilentlyContinue)) {
+    Unregister-ScheduledTask -TaskName "DataOpsLogonScript" -Confirm:$false
+}
+
 Start-Sleep -Seconds 5
 
 # Executing the deployment logs bundle PowerShell script in a new window
